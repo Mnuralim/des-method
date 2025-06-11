@@ -1,0 +1,84 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model admin {
+  id           String             @id @unique @default(uuid())
+  username     String             @unique
+  password     String
+  name         String
+  createdAt    DateTime           @default(now()) @map("created_at")
+  students     Student[]
+  activityLogs AdminActivityLog[]
+
+  @@map("admins")
+}
+
+model AdminActivityLog {
+  id          String   @id @unique @default(uuid())
+  adminId     String   @map("admin_id")
+  action      String
+  entity      String?
+  entityId    String?  @map("entity_id")
+  description String
+  createdAt   DateTime @default(now()) @map("created_at")
+  admin       admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@map("admin_activity_logs")
+}
+
+model Student {
+  id         String   @id @unique @default(uuid())
+  name       String
+  nisn       String   @unique
+  birthPlace String   @map("birth_place")
+  birthDate  String   @map("birth_date")
+  gender     String
+  religion   String
+  grade      String
+  address    String
+  adminId    String   @map("admin_id")
+  createdBy  admin    @relation(fields: [adminId], references: [id])
+  createdAt  DateTime @default(now()) @map("created_at")
+  scores     Score[]
+
+  @@map("students")
+}
+
+model Subject {
+  id        String   @id @unique @default(uuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  scores    Score[]
+
+  @@map("subjects")
+}
+
+model Score {
+  id           String   @id @unique @default(uuid())
+  studentId    String   @map("student_id")
+  subjectId    String   @map("subject_id")
+  semester     String
+  academicYear String   @map("academic_year")
+  value        String
+  letterGrade  String   @map("letter_grade")
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject      Subject  @relation(fields: [subjectId], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([studentId, subjectId, semester, academicYear])
+  @@map("scores")
+}
