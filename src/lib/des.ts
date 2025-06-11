@@ -1,4 +1,4 @@
-import CryptoJS from "crypto-js";
+const { default: CryptoJS } = await import("crypto-js");
 
 const DES_KEY = CryptoJS.enc.Utf8.parse(process.env.DES_KEY || "12345678");
 const IV = CryptoJS.enc.Utf8.parse(process.env.DES_IV || "abcdefgh");
