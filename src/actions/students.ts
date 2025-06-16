@@ -2,12 +2,13 @@
 
 import prisma from "@/lib/prisma";
 import { getSession } from "./session";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import { decryptDES, encryptDES } from "@/lib/des";
 import { createActivity } from "./activity";
+import type { Prisma } from "@prisma/client";
 
-export async function getAllStudents(
+export const getAllStudents = unstable_cache(async function getAllStudents(
   isDecrypted: boolean,
   limit: string,
   skip: string,
@@ -16,56 +17,150 @@ export async function getAllStudents(
   grade?: string,
   sortOrder?: string
 ) {
-  let students = await prisma.student.findMany({
-    take: parseInt(limit),
-    skip: parseInt(skip),
+  if (isDecrypted) {
+    return getDecryptedStudents(
+      limit,
+      skip,
+      search,
+      religion,
+      grade,
+      sortOrder
+    );
+  } else {
+    return getEncryptedStudents(
+      limit,
+      skip,
+      search,
+      religion,
+      grade,
+      sortOrder
+    );
+  }
+});
+
+// Untuk data encrypted - filtering di database level
+async function getEncryptedStudents(
+  limit: string,
+  skip: string,
+  search?: string,
+  religion?: string,
+  grade?: string,
+  sortOrder?: string
+) {
+  const whereClause: Prisma.StudentWhereInput = {};
+
+  if (religion) {
+    whereClause.religion = {
+      equals: religion,
+    };
+  }
+
+  if (grade) {
+    whereClause.grade = {
+      equals: grade,
+    };
+  }
+
+  if (search) {
+    return getDecryptedStudents(
+      limit,
+      skip,
+      search,
+      religion,
+      grade,
+      sortOrder
+    );
+  }
+
+  const [students, totalCount] = await Promise.all([
+    prisma.student.findMany({
+      where: whereClause,
+      take: parseInt(limit),
+      skip: parseInt(skip),
+      orderBy: {
+        createdAt: sortOrder === "asc" ? "asc" : "desc",
+      },
+    }),
+    prisma.student.count({
+      where: whereClause,
+    }),
+  ]);
+
+  return {
+    students,
+    totalCount,
+    currentPage: Math.floor(parseInt(skip) / parseInt(limit)) + 1,
+    totalPages: Math.ceil(totalCount / parseInt(limit)),
+    itemsPerPage: parseInt(limit),
+  };
+}
+
+async function getDecryptedStudents(
+  limit: string,
+  skip: string,
+  search?: string,
+  religion?: string,
+  grade?: string,
+  sortOrder?: string
+) {
+  const allStudents = await prisma.student.findMany({
     orderBy: {
       createdAt: sortOrder === "asc" ? "asc" : "desc",
     },
   });
 
-  if (isDecrypted) {
-    students = students.map((student) => ({
-      ...student,
-      name: decryptDES(student.name),
-      nisn: decryptDES(student.nisn),
-      birthPlace: decryptDES(student.birthPlace),
-      birthDate: decryptDES(student.birthDate),
-      address: decryptDES(student.address),
-      religion: decryptDES(student.religion),
-      grade: decryptDES(student.grade),
-      gender: decryptDES(student.gender),
-    }));
-  }
+  const decryptedStudents = allStudents.map((student) => ({
+    ...student,
+    name: decryptDES(student.name),
+    nisn: decryptDES(student.nisn),
+    birthPlace: decryptDES(student.birthPlace),
+    birthDate: decryptDES(student.birthDate),
+    address: decryptDES(student.address),
+    religion: decryptDES(student.religion),
+    grade: decryptDES(student.grade),
+    gender: decryptDES(student.gender),
+  }));
+
+  let filteredStudents = decryptedStudents;
 
   if (search) {
-    students = students.filter((student) =>
-      student.name.toLowerCase().includes(search.toLowerCase())
+    filteredStudents = filteredStudents.filter(
+      (student) =>
+        student.name.toLowerCase().includes(search.toLowerCase()) ||
+        student.nisn.toLowerCase().includes(search.toLowerCase())
     );
   }
 
   if (religion) {
-    students = students.filter(
+    filteredStudents = filteredStudents.filter(
       (student) => student.religion.toLowerCase() === religion.toLowerCase()
     );
   }
 
   if (grade) {
-    students = students.filter(
+    filteredStudents = filteredStudents.filter(
       (student) => student.grade.toLowerCase() === grade.toLowerCase()
     );
   }
 
+  const paginatedStudents = filteredStudents.slice(
+    parseInt(skip),
+    parseInt(skip) + parseInt(limit)
+  );
+
   return {
-    students,
-    totalCount: students.length,
+    students: paginatedStudents,
+    totalCount: filteredStudents.length,
     currentPage: Math.floor(parseInt(skip) / parseInt(limit)) + 1,
-    totalPages: Math.ceil(students.length / parseInt(limit)),
+    totalPages: Math.ceil(filteredStudents.length / parseInt(limit)),
     itemsPerPage: parseInt(limit),
   };
 }
 
-export async function getStudentById(id: string, isDecrypted: boolean) {
+export const getStudentById = unstable_cache(async function getStudentById(
+  id: string,
+  isDecrypted: boolean
+) {
   const student = await prisma.student.findUnique({
     where: {
       id: id,
@@ -92,7 +187,7 @@ export async function getStudentById(id: string, isDecrypted: boolean) {
   }
 
   return student;
-}
+});
 
 export async function createStudent(
   prevState: FormState,
@@ -167,7 +262,10 @@ export async function createStudent(
     }
   }
 
-  revalidatePath("/students");
+  revalidatePath("/students", "layout");
+  revalidatePath("/");
+  revalidatePath("/scores");
+  revalidatePath("/logs");
   redirect("/students");
 }
 
@@ -271,7 +369,10 @@ export async function updateStudent(
     }
   }
 
-  revalidatePath("/students");
+  revalidatePath("/students", "layout");
+  revalidatePath("/");
+  revalidatePath("/scores");
+  revalidatePath("/logs");
   redirect("/students");
 }
 
@@ -306,5 +407,8 @@ export async function deleteStudent(id: string) {
       throw new Error("Something went wrong");
     }
   }
-  revalidatePath("/students");
+  revalidatePath("/students", "layout");
+  revalidatePath("/");
+  revalidatePath("/scores");
+  revalidatePath("/logs");
 }

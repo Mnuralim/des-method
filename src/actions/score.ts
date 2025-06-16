@@ -2,15 +2,16 @@
 
 import { decryptDES, encryptDES } from "@/lib/des";
 import prisma from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import { createActivity } from "./activity";
+import type { Prisma } from "@prisma/client";
 
 type FormState = {
   error: string | null;
 };
 
-export async function getAllScores(
+export const getAllScores = unstable_cache(async function getAllScores(
   isDecrypted: boolean,
   limit: string,
   skip: string,
@@ -21,9 +22,129 @@ export async function getAllScores(
   sortOrder?: string,
   grade?: string
 ) {
-  let scores = await prisma.score.findMany({
-    take: parseInt(limit),
-    skip: parseInt(skip),
+  if (isDecrypted) {
+    return getDecryptedScores(
+      limit,
+      skip,
+      student,
+      subject,
+      semester,
+      academicYear,
+      sortOrder,
+      grade
+    );
+  } else {
+    return getEncryptedScores(
+      limit,
+      skip,
+      student,
+      subject,
+      semester,
+      academicYear,
+      sortOrder,
+      grade
+    );
+  }
+});
+
+async function getEncryptedScores(
+  limit: string,
+  skip: string,
+  student?: string,
+  subject?: string,
+  semester?: string,
+  academicYear?: string,
+  sortOrder?: string,
+  grade?: string
+) {
+  const whereClause: Prisma.ScoreWhereInput[] = [];
+
+  if (student) {
+    whereClause.push({
+      id: {
+        contains: student,
+      },
+    });
+  }
+
+  if (subject) {
+    whereClause.push({
+      subject: {
+        id: {
+          contains: subject,
+        },
+      },
+    });
+  }
+
+  if (semester) {
+    whereClause.push({
+      semester: {
+        equals: semester,
+      },
+    });
+  }
+
+  if (academicYear) {
+    whereClause.push({
+      academicYear: {
+        equals: academicYear,
+      },
+    });
+  }
+
+  if (grade) {
+    whereClause.push({
+      student: {
+        grade: {
+          equals: grade,
+        },
+      },
+    });
+  }
+
+  const [scores, totalCount] = await Promise.all([
+    prisma.score.findMany({
+      where: {
+        AND: whereClause,
+      },
+      take: parseInt(limit),
+      skip: parseInt(skip),
+      include: {
+        student: true,
+        subject: true,
+      },
+      orderBy: {
+        createdAt: sortOrder === "asc" ? "asc" : "desc",
+      },
+    }),
+    prisma.score.count({
+      where: {
+        AND: whereClause,
+      },
+    }),
+  ]);
+
+  return {
+    scores,
+    totalCount,
+    currentPage: Math.floor(parseInt(skip) / parseInt(limit)) + 1,
+    totalPages: Math.ceil(totalCount / parseInt(limit)),
+    itemsPerPage: parseInt(limit),
+  };
+}
+
+async function getDecryptedScores(
+  limit: string,
+  skip: string,
+  student?: string,
+  subject?: string,
+  semester?: string,
+  academicYear?: string,
+  sortOrder?: string,
+  grade?: string
+) {
+  const allScores = await prisma.score.findMany({
     include: {
       student: true,
       subject: true,
@@ -33,67 +154,72 @@ export async function getAllScores(
     },
   });
 
-  if (isDecrypted) {
-    scores = scores.map((score) => ({
-      ...score,
-      semester: decryptDES(score.semester),
-      academicYear: decryptDES(score.academicYear),
-      value: decryptDES(score.value),
-      letterGrade: decryptDES(score.letterGrade),
-      student: {
-        ...score.student,
-        name: decryptDES(score.student.name),
-        nisn: decryptDES(score.student.nisn),
-        birthPlace: decryptDES(score.student.birthPlace),
-        birthDate: decryptDES(score.student.birthDate),
-        address: decryptDES(score.student.address),
-        religion: decryptDES(score.student.religion),
-        grade: decryptDES(score.student.grade),
-        gender: decryptDES(score.student.gender),
-      },
-      subject: {
-        ...score.subject,
-        name: decryptDES(score.subject.name),
-        code: decryptDES(score.subject.code),
-      },
-    }));
-  }
+  const decryptedScores = allScores.map((score) => ({
+    ...score,
+    semester: decryptDES(score.semester),
+    academicYear: decryptDES(score.academicYear),
+    value: decryptDES(score.value),
+    letterGrade: decryptDES(score.letterGrade),
+    student: {
+      ...score.student,
+      name: decryptDES(score.student.name),
+      nisn: decryptDES(score.student.nisn),
+      birthPlace: decryptDES(score.student.birthPlace),
+      birthDate: decryptDES(score.student.birthDate),
+      address: decryptDES(score.student.address),
+      religion: decryptDES(score.student.religion),
+      grade: decryptDES(score.student.grade),
+      gender: decryptDES(score.student.gender),
+    },
+    subject: {
+      ...score.subject,
+      name: decryptDES(score.subject.name),
+      code: decryptDES(score.subject.code),
+    },
+  }));
+
+  let filteredScores = decryptedScores;
 
   if (student) {
-    scores = scores.filter((score) =>
+    filteredScores = filteredScores.filter((score) =>
       score.student.id.toLowerCase().includes(student.toLowerCase())
     );
   }
 
   if (subject) {
-    scores = scores.filter((score) =>
+    filteredScores = filteredScores.filter((score) =>
       score.subject.id.toLowerCase().includes(subject.toLowerCase())
     );
   }
 
   if (semester) {
-    scores = scores.filter(
+    filteredScores = filteredScores.filter(
       (score) => score.semester.toLowerCase() === semester.toLowerCase()
     );
   }
 
   if (academicYear) {
-    scores = scores.filter(
+    filteredScores = filteredScores.filter(
       (score) => score.academicYear.toLowerCase() === academicYear.toLowerCase()
     );
   }
 
   if (grade) {
-    scores = scores.filter(
+    filteredScores = filteredScores.filter(
       (score) => score.student.grade.toLowerCase() === grade.toLowerCase()
     );
   }
 
+  const paginatedScores = filteredScores.slice(
+    parseInt(skip),
+    parseInt(skip) + parseInt(limit)
+  );
+
   return {
-    scores,
-    totalCount: scores.length,
+    scores: paginatedScores,
+    totalCount: filteredScores.length,
     currentPage: Math.floor(parseInt(skip) / parseInt(limit)) + 1,
-    totalPages: Math.ceil(scores.length / parseInt(limit)),
+    totalPages: Math.ceil(filteredScores.length / parseInt(limit)),
     itemsPerPage: parseInt(limit),
   };
 }
@@ -238,6 +364,8 @@ export async function createScore(
   }
 
   revalidatePath("/scores");
+  revalidatePath("/");
+  revalidatePath("/logs");
   redirect("/scores");
 }
 
@@ -364,6 +492,8 @@ export async function updateScore(
   }
 
   revalidatePath("/scores");
+  revalidatePath("/");
+  revalidatePath("/logs");
   redirect("/scores");
 }
 
@@ -399,4 +529,6 @@ export async function deleteScore(id: string) {
     }
   }
   revalidatePath("/scores");
+  revalidatePath("/");
+  revalidatePath("/logs");
 }

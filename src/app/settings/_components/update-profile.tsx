@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { User, Lock, Eye, EyeOff } from "lucide-react";
 import type { admin as Admin } from "@prisma/client";
-import { updateAdmin } from "@/actions/admin";
+import { customRevalidation, updateAdmin } from "@/actions/admin";
 import { ErrorMessage } from "@/app/_components/error-message";
 import { SubmitButton } from "./submit-button";
 
@@ -205,6 +205,7 @@ export const AdminProfileUpdate = ({ admin }: Props) => {
           <SubmitButton />
         </div>
       </form>
+      <button onClick={customRevalidation}>Refresh</button>
     </div>
   );
 };

@@ -1,8 +1,9 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { unstable_cache } from "next/cache";
 
-export async function getStats() {
+export const getStats = unstable_cache(async function getStats() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -40,4 +41,4 @@ export async function getStats() {
     activitiesCount,
     recentAcitvity,
   };
-}
+});

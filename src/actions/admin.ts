@@ -5,7 +5,7 @@ import { compare, hash } from "bcryptjs";
 import { createSession, deleteSession, getSession } from "./session";
 import { redirect } from "next/navigation";
 import { createActivity } from "./activity";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache } from "next/cache";
 
 export async function login(
   prevState: FormState,
@@ -60,17 +60,18 @@ export async function login(
     }
   }
 
+  revalidatePath("/");
+  revalidatePath("/logs");
   redirect("/");
 }
 
-export async function getAdmin() {
-  const session = await getSession();
+export const getAdmin = unstable_cache(async function getAdmin(id: string) {
   return prisma.admin.findUnique({
     where: {
-      id: session?.id,
+      id,
     },
   });
-}
+});
 
 export async function updateAdmin(
   prevState: FormState,
@@ -88,7 +89,8 @@ export async function updateAdmin(
   }
 
   try {
-    const existingAdmin = await getAdmin();
+    const session = await getSession();
+    const existingAdmin = await getAdmin(session!.id);
     if (!existingAdmin) {
       return {
         error: "Admin tidak ditemukan",
@@ -148,7 +150,8 @@ export async function updateAdmin(
       };
     }
   }
-
+  revalidatePath("/");
+  revalidatePath("/logs");
   revalidatePath("/settings");
   return {
     error: null,
@@ -158,4 +161,8 @@ export async function updateAdmin(
 export async function logOut() {
   await deleteSession();
   redirect("/login");
+}
+
+export async function customRevalidation() {
+  revalidatePath("/", "layout");
 }
