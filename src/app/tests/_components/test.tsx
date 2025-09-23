@@ -192,7 +192,7 @@ export const Test = () => {
         <div className="flex gap-2">
           <button
             onClick={addTestData}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors"
+            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Tambah ke List
@@ -267,7 +267,6 @@ export const Test = () => {
         </div>
       )}
 
-      {/* Results Section */}
       {results.length > 0 && (
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">

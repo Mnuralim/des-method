@@ -6,7 +6,7 @@ import { revalidatePath, unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import { decryptDES, encryptDES } from "@/lib/des";
 import { createActivity } from "./activity";
-import type { Prisma } from "@prisma/client";
+// import type { Prisma } from "@prisma/client";
 
 export const getAllStudents = unstable_cache(async function getAllStudents(
   isDecrypted: boolean,
@@ -17,83 +17,64 @@ export const getAllStudents = unstable_cache(async function getAllStudents(
   grade?: string,
   sortOrder?: string
 ) {
-  if (isDecrypted) {
-    return getDecryptedStudents(
-      limit,
-      skip,
-      search,
-      religion,
-      grade,
-      sortOrder
-    );
-  } else {
-    return getEncryptedStudents(
-      limit,
-      skip,
-      search,
-      religion,
-      grade,
-      sortOrder
-    );
-  }
+  return getDecryptedStudents(limit, skip, search, religion, grade, sortOrder);
 });
 
-// Untuk data encrypted - filtering di database level
-async function getEncryptedStudents(
-  limit: string,
-  skip: string,
-  search?: string,
-  religion?: string,
-  grade?: string,
-  sortOrder?: string
-) {
-  const whereClause: Prisma.StudentWhereInput = {};
+// async function getEncryptedStudents(
+//   limit: string,
+//   skip: string,
+//   search?: string,
+//   religion?: string,
+//   grade?: string,
+//   sortOrder?: string
+// ) {
+//   const whereClause: Prisma.StudentWhereInput = {};
 
-  if (religion) {
-    whereClause.religion = {
-      equals: religion,
-    };
-  }
+//   if (religion) {
+//     whereClause.religion = {
+//       equals: religion,
+//     };
+//   }
 
-  if (grade) {
-    whereClause.grade = {
-      equals: grade,
-    };
-  }
+//   if (grade) {
+//     whereClause.grade = {
+//       equals: grade,
+//     };
+//   }
 
-  if (search) {
-    return getDecryptedStudents(
-      limit,
-      skip,
-      search,
-      religion,
-      grade,
-      sortOrder
-    );
-  }
+//   if (search) {
+//     return getDecryptedStudents(
+//       limit,
+//       skip,
+//       search,
+//       religion,
+//       grade,
+//       sortOrder
+//     );
+//   }
 
-  const [students, totalCount] = await Promise.all([
-    prisma.student.findMany({
-      where: whereClause,
-      take: parseInt(limit),
-      skip: parseInt(skip),
-      orderBy: {
-        createdAt: sortOrder === "asc" ? "asc" : "desc",
-      },
-    }),
-    prisma.student.count({
-      where: whereClause,
-    }),
-  ]);
+//   const [students, totalCount] = await Promise.all([
+//     prisma.student.findMany({
+//       where: whereClause,
+//       take: parseInt(limit),
+//       skip: parseInt(skip),
+//       orderBy: {
+//         createdAt: sortOrder === "asc" ? "asc" : "desc",
+//       },
+//     }),
+//     prisma.student.count({
+//       where: whereClause,
+//     }),
+//   ]);
 
-  return {
-    students,
-    totalCount,
-    currentPage: Math.floor(parseInt(skip) / parseInt(limit)) + 1,
-    totalPages: Math.ceil(totalCount / parseInt(limit)),
-    itemsPerPage: parseInt(limit),
-  };
-}
+//   return {
+//     students,
+//     totalCount,
+//     currentPage: Math.floor(parseInt(skip) / parseInt(limit)) + 1,
+//     totalPages: Math.ceil(totalCount / parseInt(limit)),
+//     itemsPerPage: parseInt(limit),
+//   };
+// }
 
 async function getDecryptedStudents(
   limit: string,
@@ -167,26 +148,24 @@ export const getStudentById = unstable_cache(async function getStudentById(
     },
   });
 
+  console.log(isDecrypted);
+
   if (!student) {
     return null;
   }
 
-  if (isDecrypted) {
-    return {
-      ...student,
-      name: decryptDES(student.name),
-      nisn: decryptDES(student.nisn),
-      birthPlace: decryptDES(student.birthPlace),
-      birthDate: decryptDES(student.birthDate),
-      address: decryptDES(student.address),
-      religion: decryptDES(student.religion),
-      grade: decryptDES(student.grade),
-      gender: decryptDES(student.gender),
-      student,
-    };
-  }
-
-  return student;
+  return {
+    ...student,
+    name: decryptDES(student.name),
+    nisn: decryptDES(student.nisn),
+    birthPlace: decryptDES(student.birthPlace),
+    birthDate: decryptDES(student.birthDate),
+    address: decryptDES(student.address),
+    religion: decryptDES(student.religion),
+    grade: decryptDES(student.grade),
+    gender: decryptDES(student.gender),
+    student,
+  };
 });
 
 export async function createStudent(

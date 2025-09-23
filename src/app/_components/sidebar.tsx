@@ -13,6 +13,7 @@ import {
   User2Icon,
   HistoryIcon,
   MedalIcon,
+  TestTubeIcon,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { logOut } from "@/actions/admin";
@@ -98,6 +99,11 @@ export function Sidebar({ className = "", username }: SidebarProps) {
       name: "Manajemen Nilai Siswa",
       icon: <MedalIcon className="w-5 h-5" />,
       href: "/scores",
+    },
+    {
+      name: "Pengujian",
+      icon: <TestTubeIcon className="w-5 h-5" />,
+      href: "/tests",
     },
     {
       name: "Riwayat Aktivitas",

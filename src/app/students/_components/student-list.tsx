@@ -191,7 +191,7 @@ export const StudentList = ({ students, modal, pagination }: Props) => {
           </Link>
           <button
             onClick={() => handleEditStudent(item)}
-            disabled={!isDecrypted}
+            // disabled={!isDecrypted}
             className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Edit Data"
           >
@@ -241,6 +241,7 @@ export const StudentList = ({ students, modal, pagination }: Props) => {
             Export Excel
           </button>
           <button
+            hidden
             onClick={handleEncryptDecrypt}
             disabled={isLoading}
             className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150 shadow-sm ${
@@ -281,7 +282,10 @@ export const StudentList = ({ students, modal, pagination }: Props) => {
       </div>
 
       {!isDecrypted && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+        <div
+          hidden
+          className="bg-orange-50 border border-orange-200 rounded-lg p-3"
+        >
           <div className="flex items-center">
             <Lock className="w-4 h-4 text-orange-600 mr-2" />
             <span className="text-sm text-orange-800 font-medium">
