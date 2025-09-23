@@ -13,7 +13,7 @@ import {
   User2Icon,
   HistoryIcon,
   MedalIcon,
-  TestTubeIcon,
+  FlaskConical,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { logOut } from "@/actions/admin";
@@ -102,9 +102,10 @@ export function Sidebar({ className = "", username }: SidebarProps) {
     },
     {
       name: "Pengujian",
-      icon: <TestTubeIcon className="w-5 h-5" />,
+      icon: <FlaskConical className="w-5 h-5" />,
       href: "/tests",
     },
+
     {
       name: "Riwayat Aktivitas",
       icon: <HistoryIcon className="w-5 h-5" />,
